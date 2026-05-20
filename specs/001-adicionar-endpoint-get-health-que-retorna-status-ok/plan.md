@@ -5,63 +5,62 @@
 
 ## Sequência técnica
 
-1. Criar estrutura do módulo `modules/platform-observability/` (com `__init__.py` no pacote e subdiretórios `application/` para o router FastAPI).
-2. Implementar o router FastAPI com endpoint `GET /health` retornando `JSONResponse({"status": "ok"})` com status 200 em `modules/platform-observability/application/health_router.py`.
-3. Registrar o router na aplicação FastAPI principal (ou criar `app/main.py` mínimo se ainda não existir) via `app.include_router(health_router)`.
-4. Criar diretório `tests/platform-observability/` com `__init__.py` e implementar os 3 testes pytest (CA-001, CA-002, CA-003) usando `fastapi.testclient.TestClient`.
-5. Rodar `uv run pytest tests/platform-observability/ -v` localmente para confirmar verde.
+1. Criar estrutura inicial do bounded context `platform-observability` (se ainda não existir): `modules/platform_observability/__init__.py` e subdiretórios `api/`, `application/`.
+2. Implementar router FastAPI com endpoint `GET /health` em `modules/platform_observability/api/health.py` retornando `{"status": "ok"}` com HTTP 200 e `Content-Type: application/json` (default do FastAPI via `JSONResponse`).
+3. Registrar o router no app FastAPI principal (`main.py` ou `app/main.py` conforme estrutura existente). Se app ainda não existe, criar `app/main.py` mínimo com `FastAPI()` e `include_router`.
+4. Garantir que o método `POST /health` retorne 405 automaticamente (comportamento default do FastAPI quando rota só aceita GET — validar com teste).
+5. Criar diretório de testes `tests/platform_observability/` com `__init__.py` e implementar `tests/platform_observability/test_health.py` cobrindo CA-001, CA-002, CA-003 usando `TestClient` do FastAPI.
+6. Validar headers de resposta: remover/ocultar headers de exposição de stack (ex.: `server`) via middleware mínimo ou configuração de Uvicorn — apenas se default expuser informação sensível; caso contrário, deixar nota.
+7. Rodar `pytest` localmente e garantir 3 testes verdes.
 
 ## Arquivos prováveis
 
 | Arquivo | Mudança esperada |
 |---------|-------------------|
-| `modules/platform-observability/__init__.py` | criar (vazio) |
-| `modules/platform-observability/application/__init__.py` | criar (vazio) |
-| `modules/platform-observability/application/health_router.py` | criar — define `APIRouter` com `GET /health` |
-| `app/main.py` | criar ou modificar — instanciar `FastAPI()` e `include_router(health_router)` |
-| `tests/platform-observability/__init__.py` | criar (vazio) |
-| `tests/platform-observability/test_health.py` | criar — testes `test_health_returns_200_with_ok_body`, `test_health_returns_json_content_type`, `test_health_post_returns_405` |
-| `pyproject.toml` | modificar se necessário — garantir `fastapi`, `httpx` (TestClient) e `pytest` como deps |
+| `modules/platform_observability/__init__.py` | criar (vazio) |
+| `modules/platform_observability/api/__init__.py` | criar (vazio) |
+| `modules/platform_observability/api/health.py` | criar (router com `GET /health`) |
+| `app/main.py` | criar ou modificar (registrar router) |
+| `tests/platform_observability/__init__.py` | criar (vazio) |
+| `tests/platform_observability/test_health.py` | criar (3 testes: CA-001, CA-002, CA-003) |
 
 ## ADRs vinculadas
 
-**Sem ADR — uso de padrões já estabelecidos.**
-
-Feature não introduz contrato público novo de negócio (health endpoint é padrão operacional universal), não cria invariante arquitetural novo, não abre trade-off não-óbvio (FastAPI já é stack mandatória pela constituição), não adiciona dependência externa e não muda política de segurança.
+**Sem ADR — uso de padrões já estabelecidos.** Endpoint trivial de liveness usando FastAPI (stack mandatória pela constituição). Sem trade-off arquitetural, sem nova dependência, sem mudança de contrato relevante além da criação trivial.
 
 ## Plano de testes (alto nível)
 
-- **Unit / Integration leve:** 3 testes em `tests/platform-observability/test_health.py` usando `TestClient` do FastAPI. Cobrem CA-001 (200 + body), CA-002 (Content-Type) e CA-003 (405 em POST).
-- **E2E:** não aplicável para Lv.1; o teste com TestClient já exercita o roteamento real do FastAPI.
-- **Contract:** o contrato `GET /health → 200 {"status":"ok"}` é verificado diretamente pelos testes CA-001 e CA-002. OpenAPI schema é gerado automaticamente pelo FastAPI; não há schema externo a versionar nesta primeira versão.
+- Unit: nenhum (endpoint não tem lógica de domínio).
+- Integration: 3 testes usando `fastapi.testclient.TestClient` cobrindo os 3 CAs de `acceptance.md`.
+- E2E: não aplicável para esta feature (smoke test externo virá via infra de monitoramento).
+- Contract: validação do shape `{"status": "ok"}` já coberta no teste de integração; se houver OpenAPI versionado no repo, atualizar; caso contrário, FastAPI gera automaticamente em `/openapi.json`.
 
 ## Plano de observabilidade
 
 | Sinal | Tipo | Onde | Threshold |
 |-------|------|------|-----------|
-| `http_requests_total{route="/health"}` | counter | middleware FastAPI / endpoint | n/a (apenas contagem) |
-| `http_request_duration_seconds{route="/health"}` | histogram | middleware FastAPI | alerta p95 > 100ms por 5min (RNF-001) |
-| `http_requests_errors_total{route="/health",status=~"5.."}` | counter | middleware FastAPI | alerta > 1/min (endpoint estático não deve falhar) |
+| `health_request_total` | counter | endpoint `GET /health` | n/a (informativo) |
+| `health_latency_seconds` | histogram | endpoint `GET /health` | alerta p95 > 200ms por 5min (alinhado com RNF-001) |
+| `health_5xx_total` | counter | endpoint `GET /health` | alerta > 1/min (qualquer 5xx em liveness é anômalo) |
 
-> Nota: como o endpoint é estático e sem I/O, espera-se latência p95 << 100ms. Se o serviço já possui middleware genérico de métricas HTTP, o endpoint herda automaticamente — não criar instrumentação dedicada.
+Obs.: instrumentação via middleware Prometheus padrão do app (se já existir). Se ainda não houver, registrar como dívida — não bloqueia entrega Lv.1.
 
 ## Plano de rollback
 
-Criticidade Lv.1 → rollback padrão pelo pipeline blue-green.
+Criticidade Lv.1 → **rollback padrão pelo pipeline blue-green**.
 
-- Como reverter código: `git revert <SHA do merge>` + redeploy via pipeline padrão.
-- Como reverter dados: N/A — feature não toca persistência.
-- Janela de detecção: deploy padrão; endpoint começa a ser consumido por LB/orquestrador imediatamente. Se health passar a falhar em produção, o próprio LB sinaliza.
-- Sinais que disparam rollback: taxa de 5xx em `/health` > 1% por 5min, ou p95 > 500ms sustentado por 10min.
+- Como reverter código: `git revert <SHA>` + redeploy via pipeline padrão.
+- Como reverter dados: não aplicável (sem persistência).
+- Janela de detecção: canário padrão de 10min antes de full rollout.
+- Sinais que disparam rollback: `health_5xx_total > 1/min` no canário ou falha no smoke test do pipeline.
 
 ## Riscos técnicos
 
 | Risco | Mitigação |
 |-------|-----------|
-| Router não é registrado na app principal (rota 404) | Teste CA-001 via TestClient pega isso antes do merge |
-| Resposta padrão do FastAPI inclui campos extras além de `{"status":"ok"}` (ex: usar Pydantic model com campos opcionais default) | Usar `JSONResponse` direto com dict literal, não modelo Pydantic, garantindo igualdade exata do body |
-| Middleware global de auth/CORS bloqueia `/health` involuntariamente | Documentar `/health` como rota pública isenta de auth na configuração de middleware, e validar via TestClient sem credenciais |
-| Conflito de rota se outro módulo já expõe `/health` | Grep no repo antes de criar; se existir, consolidar ao invés de duplicar |
+| Headers default do FastAPI/Uvicorn exporem versão (`server: uvicorn`) | Inspecionar resposta no teste; se necessário, configurar `server_header=False` no Uvicorn |
+| Rota `/health` colidir com prefixo já existente | Verificar `app/main.py` antes de registrar; se houver conflito, alinhar com EM |
+| Teste não rodar no CI por falta de descoberta (path) | Garantir `pytest.ini`/`pyproject.toml` inclui `tests/` no `testpaths` |
 
 ---
 
