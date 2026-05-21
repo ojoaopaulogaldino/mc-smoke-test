@@ -1,0 +1,22 @@
+{
+  "scanner": "syft",
+  "findings": [
+    {
+      "scanner": "syft",
+      "rule_id": "sbom_components_count",
+      "severity": "info",
+      "message": "SBOM gerado: 0 componentes (CycloneDX)",
+      "metadata": {
+        "component_count": 0
+      }
+    }
+  ],
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 1
+  },
+  "exit_code": 0
+}
