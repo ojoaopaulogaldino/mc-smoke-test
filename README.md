@@ -1,19 +1,15 @@
-# JSAAI Frontend
+# JSAAI Frontend Bootstrap
 
-Aplicacao React com Next.js 15 e React 19.
+Projeto React com Next.js 15 e React 19.
 
-## Pre-requisitos
+## Pré-requisitos
 
-- Node.js 20 LTS (recomendado via [nvm](https://github.com/nvm-sh/nvm))
-- pnpm
+- Node.js 20 LTS (use [nvm](https://github.com/nvm-sh/nvm): `nvm use`)
+- [pnpm](https://pnpm.io/) (`npm install -g pnpm`)
 
-```bash
-nvm use
-```
+## Instalação
 
-## Instalacao
-
-Instale as dependencias do projeto:
+Instale as dependências:
 
 ```bash
 pnpm install
@@ -29,15 +25,15 @@ pnpm dev
 
 Acesse [http://localhost:3000](http://localhost:3000) no navegador.
 
-## Build de producao
+## Build de produção
 
-Gere o bundle de producao:
+Gere o bundle de produção:
 
 ```bash
 pnpm build
 ```
 
-Inicie o servidor de producao:
+Inicie o servidor de produção:
 
 ```bash
 pnpm start
@@ -51,17 +47,19 @@ pnpm start
 │   └── app/
 │       ├── globals.css   # Estilos globais
 │       ├── layout.tsx    # Layout raiz
-│       └── page.tsx      # Pagina inicial
-├── public/               # Arquivos estaticos
-├── next.config.ts        # Configuracao do Next.js
+│       └── page.tsx      # Página inicial
+├── public/               # Arquivos estáticos
+├── .gitignore
+├── .nvmrc
+├── next.config.ts
 ├── package.json
-├── tsconfig.json
-└── README.md
+├── README.md
+└── tsconfig.json
 ```
 
 ## Troca de porta
 
-Caso a porta 3000 esteja ocupada, utilize:
+Caso a porta 3000 esteja ocupada:
 
 ```bash
 PORT=3001 pnpm dev
