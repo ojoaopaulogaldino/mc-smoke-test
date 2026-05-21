@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'JSAAI',
-  description: 'Página inicial',
+  description: 'Aplicação JSAAI',
 };
 
 export default function RootLayout({

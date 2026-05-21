@@ -1,12 +1,10 @@
 *, *::before, *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
-html,
-body {
-  min-height: 100vh;
+html, body {
+  margin: 0;
+  padding: 0;
 }
 
 body {
@@ -15,7 +13,7 @@ body {
   justify-content: center;
   min-height: 100vh;
   font-family: system-ui, sans-serif;
-  background: #ffffff;
+  background-color: #ffffff;
   color: #111111;
 }
 
@@ -23,6 +21,4 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  width: 100%;
 }

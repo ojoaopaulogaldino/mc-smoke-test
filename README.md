@@ -1,11 +1,11 @@
-# JSAAI — Frontend Bootstrap
+# JSAAI Frontend
 
-Página inicial com mensagem "funcionou" centralizada.
+Página inicial do projeto JSAAI.
 
 ## Pré-requisitos
 
 - Node.js 20 LTS (recomendado via [nvm](https://github.com/nvm-sh/nvm))
-- [pnpm](https://pnpm.io/) instalado globalmente
+- [pnpm](https://pnpm.io/) (gerenciador de pacotes)
 
 ```bash
 nvm use 20
@@ -14,27 +14,37 @@ npm install -g pnpm
 
 ## Instalação
 
+Instale as dependências do projeto:
+
 ```bash
 pnpm install
 ```
 
 ## Desenvolvimento
 
+Inicie o servidor de desenvolvimento:
+
 ```bash
 pnpm dev
 ```
 
-Abra [http://localhost:3000](http://localhost:3000) no navegador.
+Acesse [http://localhost:3000](http://localhost:3000) no navegador.
+
+Para usar uma porta diferente:
+
+```bash
+PORT=3001 pnpm dev
+```
 
 ## Build de produção
+
+Gere o bundle de produção:
 
 ```bash
 pnpm build
 ```
 
-Os arquivos de bundle são gerados no diretório `.next/`.
-
-## Iniciar servidor de produção
+Inicie o servidor de produção:
 
 ```bash
 pnpm start
@@ -43,24 +53,17 @@ pnpm start
 ## Estrutura de pastas
 
 ```
+.
 ├── src/
 │   └── app/
-│       ├── globals.css   # Reset CSS + centralização flexbox
-│       ├── layout.tsx    # Root layout (pt-BR, metadata mínima)
-│       └── page.tsx      # Página inicial — exibe "funcionou"
-├── public/               # Assets estáticos
-├── .gitignore
-├── .nvmrc                # Node 20 LTS
-├── next.config.ts
+│       ├── layout.tsx   # Layout raiz (html, body, metadata)
+│       ├── page.tsx     # Página inicial
+│       └── globals.css  # Estilos globais (reset + centralização)
+├── public/              # Assets estáticos
 ├── package.json
-├── README.md
-└── tsconfig.json
-```
-
-## Nota sobre porta
-
-Caso a porta 3000 esteja ocupada:
-
-```bash
-PORT=3001 pnpm dev
+├── tsconfig.json
+├── next.config.ts
+├── .nvmrc               # Node 20 LTS
+├── .gitignore
+└── README.md
 ```
