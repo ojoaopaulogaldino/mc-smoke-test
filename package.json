@@ -1,5 +1,5 @@
 {
-  "name": "frontend-bootstrap",
+  "name": "jsaai-frontend",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "next": "15.1.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",
