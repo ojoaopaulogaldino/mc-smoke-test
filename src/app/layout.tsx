@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'JSAAI',
-  description: 'Página inicial',
+  description: 'Bootstrap do projeto React',
 };
 
 export default function RootLayout({

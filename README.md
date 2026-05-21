@@ -1,30 +1,19 @@
 # JSAAI — Frontend Bootstrap
 
-Página inicial React com Next.js 15 exibindo a mensagem "funcionou".
+Boostrap do projeto React com Next.js 15 + React 19 + TypeScript.
 
 ## Pré-requisitos
 
-- [Node.js 20 LTS](https://nodejs.org/) (recomendado via [nvm](https://github.com/nvm-sh/nvm))
+- Node.js 20 LTS (use [nvm](https://github.com/nvm-sh/nvm): `nvm use`)
 - [pnpm](https://pnpm.io/) (`npm install -g pnpm`)
 
-Se usar nvm:
-
-```bash
-nvm install
-nvm use
-```
-
 ## Instalação
-
-Instale as dependências:
 
 ```bash
 pnpm install
 ```
 
 ## Desenvolvimento
-
-Inicie o servidor de desenvolvimento:
 
 ```bash
 pnpm dev
@@ -40,13 +29,13 @@ PORT=3001 pnpm dev
 
 ## Build de produção
 
-Gere o bundle de produção:
-
 ```bash
 pnpm build
 ```
 
-Inicie o servidor de produção:
+Os arquivos gerados ficam em `.next/`.
+
+## Iniciar servidor de produção
 
 ```bash
 pnpm start
@@ -58,14 +47,12 @@ pnpm start
 .
 ├── src/
 │   └── app/
-│       ├── globals.css   # Estilos globais (reset + centralização)
-│       ├── layout.tsx    # Layout raiz
-│       └── page.tsx      # Página inicial — exibe "funcionou"
-├── public/               # Assets estáticos
-├── .gitignore
-├── .nvmrc
-├── next.config.ts
+│       ├── globals.css   # estilos globais e centralização
+│       ├── layout.tsx    # root layout
+│       └── page.tsx      # página inicial
+├── public/               # assets estáticos
 ├── package.json
-├── README.md
-└── tsconfig.json
+├── tsconfig.json
+├── next.config.ts
+└── README.md
 ```
