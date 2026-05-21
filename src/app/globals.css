@@ -2,23 +2,26 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
 }
 
 body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+main.container {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  font-family: system-ui, sans-serif;
-  background-color: #ffffff;
-  color: #111111;
-}
-
-main {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
 }

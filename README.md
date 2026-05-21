@@ -1,20 +1,22 @@
-# JSAAI Frontend
+# JSAAI — Frontend Bootstrap
 
-Página inicial do projeto JSAAI.
+Página inicial React com Next.js 15 exibindo a mensagem "funcionou".
 
 ## Pré-requisitos
 
-- Node.js 20 LTS (recomendado via [nvm](https://github.com/nvm-sh/nvm))
-- [pnpm](https://pnpm.io/) (gerenciador de pacotes)
+- [Node.js 20 LTS](https://nodejs.org/) (recomendado via [nvm](https://github.com/nvm-sh/nvm))
+- [pnpm](https://pnpm.io/) (`npm install -g pnpm`)
+
+Se usar nvm:
 
 ```bash
-nvm use 20
-npm install -g pnpm
+nvm install
+nvm use
 ```
 
 ## Instalação
 
-Instale as dependências do projeto:
+Instale as dependências:
 
 ```bash
 pnpm install
@@ -30,7 +32,7 @@ pnpm dev
 
 Acesse [http://localhost:3000](http://localhost:3000) no navegador.
 
-Para usar uma porta diferente:
+Para usar outra porta:
 
 ```bash
 PORT=3001 pnpm dev
@@ -56,14 +58,14 @@ pnpm start
 .
 ├── src/
 │   └── app/
-│       ├── layout.tsx   # Layout raiz (html, body, metadata)
-│       ├── page.tsx     # Página inicial
-│       └── globals.css  # Estilos globais (reset + centralização)
-├── public/              # Assets estáticos
-├── package.json
-├── tsconfig.json
-├── next.config.ts
-├── .nvmrc               # Node 20 LTS
+│       ├── globals.css   # Estilos globais (reset + centralização)
+│       ├── layout.tsx    # Layout raiz
+│       └── page.tsx      # Página inicial — exibe "funcionou"
+├── public/               # Assets estáticos
 ├── .gitignore
-└── README.md
+├── .nvmrc
+├── next.config.ts
+├── package.json
+├── README.md
+└── tsconfig.json
 ```
