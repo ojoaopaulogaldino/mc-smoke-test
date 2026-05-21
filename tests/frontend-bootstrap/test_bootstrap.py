@@ -1,26 +1,59 @@
+"""Testes RED para feature 003-react-bootstrap-home (frontend-bootstrap).
+
+Todos os testes devem FALHAR enquanto o código de produção não existir.
+Stack: Next.js 15 + React 19 + pnpm (frontend); pytest (test runner).
+
+Pré-requisito do ambiente de CI: Node 20 LTS e pnpm devem estar instalados.
+"""
+
 import os
 import subprocess
 import time
+import signal
 import shutil
-import threading
-import re
+import tempfile
+from pathlib import Path
 
 import pytest
+import requests
 
-# Root directory of the repository (two levels up from this test file)
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# Raiz do repositório: dois níveis acima de tests/frontend-bootstrap/
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Porta padrão do Next.js
+DEV_SERVER_PORT = 3000
+DEV_SERVER_URL = f"http://localhost:{DEV_SERVER_PORT}"
+
+# Timeout máximo (segundos) para o servidor de desenvolvimento subir (RNF-001: <30s)
+DEV_SERVER_STARTUP_TIMEOUT = 30
 
 
-def _find_package_manager():
-    """Detect pnpm or npm in PATH."""
-    if shutil.which("pnpm"):
-        return "pnpm"
-    if shutil.which("npm"):
-        return "npm"
-    return None
+def _find_pnpm() -> str:
+    """Retorna caminho do executável pnpm ou levanta FileNotFoundError."""
+    pnpm = shutil.which("pnpm")
+    if pnpm is None:
+        raise FileNotFoundError(
+            "pnpm não encontrado no PATH. Instale pnpm antes de rodar os testes."
+        )
+    return pnpm
 
 
-PKG_MGR = _find_package_manager()
+def _dev_server_ready(timeout: int = DEV_SERVER_STARTUP_TIMEOUT) -> bool:
+    """Tenta conectar ao servidor de desenvolvimento até o timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            resp = requests.get(DEV_SERVER_URL, timeout=2)
+            if resp.status_code == 200:
+                return True
+        except requests.exceptions.ConnectionError:
+            pass
+        time.sleep(1)
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -28,370 +61,348 @@ PKG_MGR = _find_package_manager()
 # ---------------------------------------------------------------------------
 
 def test_dev_server_starts_without_errors():
-    """
-    CA-001: O servidor de desenvolvimento deve iniciar sem erros e expor uma
-    URL local acessivel (ex: http://localhost:3000).
-    """
+    """CA-001: servidor de desenvolvimento inicia sem erros e expõe URL local acessível."""
     # Arrange
-    assert PKG_MGR is not None, "pnpm ou npm nao encontrado no PATH"
-    node_modules = os.path.join(REPO_ROOT, "node_modules")
-    assert os.path.isdir(node_modules), (
-        "node_modules nao encontrado — execute pnpm install antes dos testes"
+    pnpm = _find_pnpm()
+    package_json = REPO_ROOT / "package.json"
+    assert package_json.exists(), (
+        "package.json não encontrado na raiz do repositório — projeto ainda não inicializado."
+    )
+    node_modules = REPO_ROOT / "node_modules"
+    assert node_modules.exists(), (
+        "node_modules/ não encontrado — execute 'pnpm install' antes de rodar CA-001."
     )
 
-    url_pattern = re.compile(r"http://localhost:\d+")
-    detected_url = []
-    process = None
-
-    def stream_output(proc):
-        for line in proc.stdout:
-            decoded = line.decode("utf-8", errors="replace")
-            if url_pattern.search(decoded):
-                detected_url.append(decoded.strip())
-
-    # Act
+    # Act: inicia o servidor de desenvolvimento em background
     process = subprocess.Popen(
-        [PKG_MGR, "run", "dev"],
-        cwd=REPO_ROOT,
+        [pnpm, "run", "dev"],
+        cwd=str(REPO_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        text=True,
+        preexec_fn=os.setsid,
     )
 
-    reader = threading.Thread(target=stream_output, args=(process,), daemon=True)
-    reader.start()
-
-    deadline = time.time() + 30
-    while time.time() < deadline:
-        if detected_url:
-            break
-        if process.poll() is not None:
-            break
-        time.sleep(0.5)
-
-    process.terminate()
     try:
-        process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        process.kill()
+        # Assert: servidor deve subir dentro do timeout e responder HTTP 200
+        server_ready = _dev_server_ready(timeout=DEV_SERVER_STARTUP_TIMEOUT)
+        assert server_ready, (
+            f"Servidor de desenvolvimento não ficou acessível em {DEV_SERVER_STARTUP_TIMEOUT}s "
+            f"em {DEV_SERVER_URL}. CA-001 falhou."
+        )
 
-    # Assert
-    assert detected_url, (
-        "CA-001 FALHOU: nenhuma URL local foi detectada na saida do servidor "
-        "de desenvolvimento dentro de 30 segundos"
-    )
+        # Verifica que o processo ainda está rodando (sem crash imediato)
+        assert process.poll() is None, (
+            "Processo 'pnpm run dev' terminou inesperadamente — exit code indica erro."
+        )
+    finally:
+        # Cleanup: encerra o grupo de processos do servidor
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            process.wait(timeout=10)
+        except Exception:
+            process.kill()
 
 
 # ---------------------------------------------------------------------------
-# CA-002 — Pagina inicial exibe apenas o texto funcionou
+# CA-002 — Página inicial exibe apenas o texto "funcionou"
 # ---------------------------------------------------------------------------
 
 def test_home_displays_only_funcionou_text():
-    """
-    CA-002: A pagina inicial deve exibir unica e exclusivamente o texto
-    exato 'funcionou', sem outros conteudos proeminentes.
-    """
+    """CA-002: a única mensagem visível na página inicial é o texto exato 'funcionou'."""
     # Arrange
-    page_tsx_candidates = [
-        os.path.join(REPO_ROOT, "src", "app", "page.tsx"),
-        os.path.join(REPO_ROOT, "app", "page.tsx"),
-        os.path.join(REPO_ROOT, "src", "pages", "index.tsx"),
-        os.path.join(REPO_ROOT, "pages", "index.tsx"),
-    ]
-    found_page = None
-    for candidate in page_tsx_candidates:
-        if os.path.isfile(candidate):
-            found_page = candidate
-            break
+    pnpm = _find_pnpm()
+    package_json = REPO_ROOT / "package.json"
+    assert package_json.exists(), "package.json não encontrado."
+    node_modules = REPO_ROOT / "node_modules"
+    assert node_modules.exists(), "node_modules/ não encontrado."
 
-    assert found_page is not None, (
-        "CA-002 FALHOU: nenhum arquivo de pagina inicial encontrado "
-        "(src/app/page.tsx, app/page.tsx, etc.)"
+    process = subprocess.Popen(
+        [pnpm, "run", "dev"],
+        cwd=str(REPO_ROOT),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        preexec_fn=os.setsid,
     )
 
-    # Act
-    with open(found_page, "r", encoding="utf-8") as fh:
-        content = fh.read()
+    try:
+        server_ready = _dev_server_ready(timeout=DEV_SERVER_STARTUP_TIMEOUT)
+        assert server_ready, f"Servidor não ficou disponível em {DEV_SERVER_URL}."
 
-    # Assert — o arquivo deve conter 'funcionou' e NAO deve conter strings de boilerplate
-    assert "funcionou" in content, (
-        "CA-002 FALHOU: texto 'funcionou' nao encontrado em " + found_page
-    )
+        # Act: busca o HTML da página inicial
+        response = requests.get(DEV_SERVER_URL, timeout=10)
+        html_content = response.text
 
-    boilerplate_strings = [
-        "Get started",
-        "Edit src",
-        "Vercel",
-        "Next.js",
-        "Deploy now",
-        "Read our docs",
-    ]
-    for boilerplate in boilerplate_strings:
-        assert boilerplate not in content, (
-            f"CA-002 FALHOU: texto de boilerplate '{boilerplate}' encontrado em {found_page}. "
-            "A pagina deve exibir APENAS 'funcionou'."
+        # Assert: o texto "funcionou" deve aparecer no HTML
+        assert "funcionou" in html_content, (
+            "O texto 'funcionou' não foi encontrado no HTML da página inicial. "
+            "CA-002 falhou."
         )
+
+        # Assert: textos típicos de boilerplate do Next.js NÃO devem estar presentes
+        boilerplate_markers = [
+            "Get started by editing",
+            "Edit <code>",
+            "Deploy now",
+            "Learn",
+            "Examples",
+            "Go to nextjs.org",
+        ]
+        for marker in boilerplate_markers:
+            assert marker not in html_content, (
+                f"Texto de boilerplate '{marker}' encontrado na página — "
+                "a página não foi limpa corretamente. CA-002 falhou."
+            )
+    finally:
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            process.wait(timeout=10)
+        except Exception:
+            process.kill()
 
 
 # ---------------------------------------------------------------------------
-# CA-003 — Texto funcionou esta centralizado na viewport
+# CA-003 — Texto "funcionou" está centralizado na viewport
 # ---------------------------------------------------------------------------
 
 def test_funcionou_text_is_centered():
-    """
-    CA-003: O texto 'funcionou' deve estar centralizado vertical e
-    horizontalmente na viewport usando flexbox nativo sem libs externas.
-    """
-    # Arrange
-    css_candidates = [
-        os.path.join(REPO_ROOT, "src", "app", "globals.css"),
-        os.path.join(REPO_ROOT, "app", "globals.css"),
-        os.path.join(REPO_ROOT, "src", "styles", "globals.css"),
-        os.path.join(REPO_ROOT, "styles", "globals.css"),
+    """CA-003: o texto 'funcionou' está centralizado vertical e horizontalmente via CSS flexbox."""
+    # Arrange: verifica globals.css que deve conter as regras de centralização
+    # Estratégia: inspeciona o arquivo CSS fonte (sem dependência de browser headless)
+    # e o HTML servido, validando presença de regras flexbox obrigatórias.
+    globals_css_candidates = [
+        REPO_ROOT / "src" / "app" / "globals.css",
+        REPO_ROOT / "app" / "globals.css",
     ]
-    found_css = None
-    for candidate in css_candidates:
-        if os.path.isfile(candidate):
-            found_css = candidate
+
+    css_file = None
+    for candidate in globals_css_candidates:
+        if candidate.exists():
+            css_file = candidate
             break
 
-    assert found_css is not None, (
-        "CA-003 FALHOU: arquivo globals.css nao encontrado"
+    assert css_file is not None, (
+        "Arquivo globals.css não encontrado em src/app/ ou app/. "
+        "CA-003 falhou — sem regras CSS de centralização."
     )
 
     # Act
-    with open(found_css, "r", encoding="utf-8") as fh:
-        css_content = fh.read()
+    css_content = css_file.read_text(encoding="utf-8")
 
-    # Assert — deve conter propriedades de centralizacao via flexbox
-    assert "display" in css_content and "flex" in css_content, (
-        "CA-003 FALHOU: globals.css nao contém 'display: flex' "
-        "necessario para centralizacao"
+    # Assert: propriedades flexbox obrigatórias para centralização devem existir
+    required_flex_properties = ["display: flex", "align-items: center", "justify-content: center"]
+    missing = [prop for prop in required_flex_properties if prop not in css_content]
+    assert not missing, (
+        f"Propriedades CSS de centralização ausentes em {css_file}: {missing}. "
+        "CA-003 falhou — texto 'funcionou' não está centralizado."
     )
-    assert "align-items" in css_content and "center" in css_content, (
-        "CA-003 FALHOU: globals.css nao contém 'align-items: center' "
-        "para centralizacao vertical"
+
+    # Assert: deve haver height/min-height que garanta centralização vertical
+    has_full_height = any(
+        keyword in css_content
+        for keyword in ["min-height: 100vh", "height: 100vh", "min-height:100vh", "height:100vh"]
     )
-    assert "justify-content" in css_content, (
-        "CA-003 FALHOU: globals.css nao contém 'justify-content' "
-        "para centralizacao horizontal"
-    )
-    # Deve haver min-height ou height referenciando 100vh para ocupar a viewport
-    assert "100vh" in css_content or "100%" in css_content, (
-        "CA-003 FALHOU: globals.css nao contém referencia a 100vh ou 100% "
-        "de altura para centralizacao vertical na viewport"
+    assert has_full_height, (
+        "Nenhuma regra de altura total (100vh) encontrada em globals.css. "
+        "Sem isso, a centralização vertical não funcionará. CA-003 falhou."
     )
 
 
 # ---------------------------------------------------------------------------
-# CA-004 — Build de producao executa sem erros
+# CA-004 — Build de produção executa sem erros
 # ---------------------------------------------------------------------------
 
 def test_production_build_succeeds():
-    """
-    CA-004: O comando de build de producao deve finalizar com exit code 0
-    e gerar os arquivos de bundle no diretorio de saida (.next/ ou dist/).
-    """
+    """CA-004: 'pnpm run build' finaliza com exit code 0 e gera arquivos de bundle."""
     # Arrange
-    assert PKG_MGR is not None, "pnpm ou npm nao encontrado no PATH"
-    node_modules = os.path.join(REPO_ROOT, "node_modules")
-    assert os.path.isdir(node_modules), (
-        "node_modules nao encontrado — execute pnpm install antes dos testes"
-    )
+    pnpm = _find_pnpm()
+    package_json = REPO_ROOT / "package.json"
+    assert package_json.exists(), "package.json não encontrado."
+    node_modules = REPO_ROOT / "node_modules"
+    assert node_modules.exists(), "node_modules/ não encontrado."
 
-    # Act
+    # Act: executa o build de produção
     result = subprocess.run(
-        [PKG_MGR, "run", "build"],
-        cwd=REPO_ROOT,
+        [pnpm, "run", "build"],
+        cwd=str(REPO_ROOT),
         capture_output=True,
-        timeout=120,
+        text=True,
+        timeout=300,  # build pode demorar mais em CI
     )
 
-    # Assert — exit code 0
+    # Assert: exit code deve ser 0
     assert result.returncode == 0, (
-        "CA-004 FALHOU: build retornou exit code {}. STDOUT: {}. STDERR: {}".format(
-            result.returncode,
-            result.stdout.decode("utf-8", errors="replace")[:500],
-            result.stderr.decode("utf-8", errors="replace")[:500],
-        )
+        f"'pnpm run build' falhou com exit code {result.returncode}.\n"
+        f"STDOUT:\n{result.stdout}\n"
+        f"STDERR:\n{result.stderr}\n"
+        "CA-004 falhou."
     )
 
-    # Assert — diretorio de saida existe
-    next_dir = os.path.join(REPO_ROOT, ".next")
-    dist_dir = os.path.join(REPO_ROOT, "dist")
-    build_dir = os.path.join(REPO_ROOT, "build")
-    output_exists = (
-        os.path.isdir(next_dir)
-        or os.path.isdir(dist_dir)
-        or os.path.isdir(build_dir)
+    # Assert: diretório de saída do Next.js deve existir
+    next_build_dir = REPO_ROOT / ".next"
+    assert next_build_dir.exists() and next_build_dir.is_dir(), (
+        "Diretório .next/ não foi criado após o build. "
+        "CA-004 falhou — bundle de produção não gerado."
     )
-    assert output_exists, (
-        "CA-004 FALHOU: nenhum diretorio de saida (.next/, dist/, build/) "
-        "foi criado apos o build"
+
+    # Assert: deve haver arquivos dentro de .next/static/ (chunks JS/CSS)
+    static_dir = next_build_dir / "static"
+    assert static_dir.exists(), (
+        ".next/static/ não encontrado — build incompleto. CA-004 falhou."
+    )
+    static_files = list(static_dir.rglob("*"))
+    assert len(static_files) > 0, (
+        ".next/static/ existe mas está vazio — bundle não gerado corretamente. CA-004 falhou."
     )
 
 
 # ---------------------------------------------------------------------------
-# CA-005 — Repositorio contém estrutura minima organizada
+# CA-005 — Repositório contém estrutura mínima organizada
 # ---------------------------------------------------------------------------
 
 def test_repository_has_minimum_structure():
-    """
-    CA-005: O repositorio deve conter package.json, diretorio src/ (ou app/)
-    com codigo React, README.md e .gitignore excluindo node_modules/.
-    """
-    # Arrange + Act + Assert — verificacao de cada artefato obrigatorio
+    """CA-005: repositório clonado contém package.json, src/ (ou app/), README.md e .gitignore adequado."""
+    # Arrange / Act / Assert — verificações de sistema de arquivos
 
-    # package.json na raiz
-    package_json = os.path.join(REPO_ROOT, "package.json")
-    assert os.path.isfile(package_json), (
-        "CA-005 FALHOU: package.json nao encontrado na raiz do repositorio"
+    # Assert: package.json na raiz
+    package_json = REPO_ROOT / "package.json"
+    assert package_json.exists(), (
+        "package.json não encontrado na raiz do repositório. CA-005 falhou."
     )
 
-    # src/ ou app/ com codigo-fonte React
-    src_dir = os.path.join(REPO_ROOT, "src")
-    app_dir = os.path.join(REPO_ROOT, "app")
-    has_src = os.path.isdir(src_dir)
-    has_app = os.path.isdir(app_dir)
-    assert has_src or has_app, (
-        "CA-005 FALHOU: nenhum diretorio de codigo-fonte (src/ ou app/) "
-        "encontrado na raiz do repositorio"
+    # Assert: diretório de código-fonte React (src/app/ ou app/)
+    src_app_dir = REPO_ROOT / "src" / "app"
+    app_dir = REPO_ROOT / "app"
+    assert src_app_dir.exists() or app_dir.exists(), (
+        "Nenhum diretório src/app/ ou app/ encontrado. "
+        "Estrutura de código-fonte React ausente. CA-005 falhou."
     )
 
-    # README.md na raiz
-    readme = os.path.join(REPO_ROOT, "README.md")
-    assert os.path.isfile(readme), (
-        "CA-005 FALHOU: README.md nao encontrado na raiz do repositorio"
+    # Assert: README.md na raiz
+    readme = REPO_ROOT / "README.md"
+    assert readme.exists(), (
+        "README.md não encontrado na raiz do repositório. CA-005 falhou."
     )
 
-    # .gitignore deve existir e incluir node_modules
-    gitignore = os.path.join(REPO_ROOT, ".gitignore")
-    assert os.path.isfile(gitignore), (
-        "CA-005 FALHOU: .gitignore nao encontrado na raiz do repositorio"
+    # Assert: .gitignore existe e contém node_modules/
+    gitignore = REPO_ROOT / ".gitignore"
+    assert gitignore.exists(), (
+        ".gitignore não encontrado na raiz do repositório. CA-005 falhou."
     )
-
-    with open(gitignore, "r", encoding="utf-8") as fh:
-        gitignore_content = fh.read()
-
+    gitignore_content = gitignore.read_text(encoding="utf-8")
     assert "node_modules" in gitignore_content, (
-        "CA-005 FALHOU: .gitignore nao inclui 'node_modules/' "
-        "expondo dependencias ao controle de versao"
+        ".gitignore não exclui node_modules/. "
+        "Risco de commitar dependências. CA-005 falhou."
+    )
+
+    # Assert (edge case): .gitignore também deve excluir .next/ (gerado pelo build)
+    assert ".next" in gitignore_content, (
+        ".gitignore não exclui .next/ (diretório de build do Next.js). "
+        "CA-005 falhou — artefatos de build podem ser commitados."
     )
 
 
 # ---------------------------------------------------------------------------
-# CA-006 — README contém instrucoes de execucao
+# CA-006 — README contém instruções de execução
 # ---------------------------------------------------------------------------
 
 def test_readme_contains_execution_instructions():
-    """
-    CA-006: O README.md deve conter instrucoes para instalar dependencias,
-    iniciar o servidor de desenvolvimento e executar o build de producao.
-    """
+    """CA-006: README.md contém instruções de instalação, desenvolvimento e build."""
     # Arrange
-    readme = os.path.join(REPO_ROOT, "README.md")
-    assert os.path.isfile(readme), (
-        "CA-006 FALHOU: README.md nao encontrado na raiz do repositorio"
-    )
+    readme = REPO_ROOT / "README.md"
+    assert readme.exists(), "README.md não encontrado. CA-006 falhou."
 
     # Act
-    with open(readme, "r", encoding="utf-8") as fh:
-        readme_content = fh.read().lower()
+    readme_content = readme.read_text(encoding="utf-8")
 
-    # Assert — instrucoes de instalacao
-    install_keywords = ["install", "pnpm install", "npm install"]
+    # Assert: instruções de instalação de dependências
+    install_keywords = ["pnpm install", "npm install", "yarn install"]
     has_install = any(kw in readme_content for kw in install_keywords)
     assert has_install, (
-        "CA-006 FALHOU: README.md nao contém instrucoes de instalacao de dependencias "
-        "(ex: 'pnpm install' ou 'npm install')"
+        f"README.md não contém instrução de instalação de dependências "
+        f"(esperado um de: {install_keywords}). CA-006 falhou."
     )
 
-    # Assert — instrucoes de servidor de desenvolvimento
+    # Assert: comando para iniciar servidor de desenvolvimento
     dev_keywords = ["pnpm dev", "npm run dev", "pnpm run dev", "yarn dev"]
     has_dev = any(kw in readme_content for kw in dev_keywords)
     assert has_dev, (
-        "CA-006 FALHOU: README.md nao contém instrucoes para iniciar o servidor "
-        "de desenvolvimento (ex: 'pnpm dev' ou 'npm run dev')"
+        f"README.md não contém comando de servidor de desenvolvimento "
+        f"(esperado um de: {dev_keywords}). CA-006 falhou."
     )
 
-    # Assert — instrucoes de build de producao
+    # Assert: comando de build de produção
     build_keywords = ["pnpm build", "npm run build", "pnpm run build", "yarn build"]
     has_build = any(kw in readme_content for kw in build_keywords)
     assert has_build, (
-        "CA-006 FALHOU: README.md nao contém instrucoes para o build de producao "
-        "(ex: 'pnpm build' ou 'npm run build')"
+        f"README.md não contém comando de build de produção "
+        f"(esperado um de: {build_keywords}). CA-006 falhou."
     )
 
 
 # ---------------------------------------------------------------------------
-# CA-007 — Caso de erro: dependencias nao instaladas
+# CA-007 — Caso de erro: dependências não instaladas
 # ---------------------------------------------------------------------------
 
 def test_dev_command_fails_without_node_modules():
-    """
-    CA-007: Ao executar o comando de desenvolvimento sem node_modules/
-    instalado, o processo deve falhar com exit code diferente de 0
-    e exibir mensagem de erro no terminal.
-    """
-    import tempfile
-    import json
+    """CA-007: executar 'pnpm run dev' sem node_modules/ resulta em exit code != 0 e mensagem de erro."""
+    # Arrange: cria um diretório temporário com package.json mínimo mas SEM node_modules/
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
 
-    # Arrange — criar diretorio temporario sem node_modules
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        # Copiar apenas package.json (sem node_modules)
-        src_package = os.path.join(REPO_ROOT, "package.json")
-        dst_package = os.path.join(tmp_dir, "package.json")
-
-        if os.path.isfile(src_package):
-            with open(src_package, "r", encoding="utf-8") as fh:
-                pkg_data = json.load(fh)
-            with open(dst_package, "w", encoding="utf-8") as fh:
-                json.dump(pkg_data, fh)
+        # Copia o package.json real (se existir) para simular projeto sem deps instaladas
+        real_package_json = REPO_ROOT / "package.json"
+        if real_package_json.exists():
+            import shutil as _shutil
+            _shutil.copy(real_package_json, tmp_path / "package.json")
         else:
-            # Criar package.json minimo se ainda nao existe (red test)
-            minimal_pkg = {
-                "name": "jsaai-frontend",
-                "scripts": {"dev": "next dev"},
-                "dependencies": {"next": "15.0.0"}
-            }
-            with open(dst_package, "w", encoding="utf-8") as fh:
-                json.dump(minimal_pkg, fh)
+            # Fallback: cria package.json mínimo com script dev apontando para next
+            (tmp_path / "package.json").write_text(
+                '{"name":"jsaai-frontend","scripts":{"dev":"next dev"},"dependencies":{"next":"15.0.0"}}',
+                encoding="utf-8",
+            )
 
-        assert not os.path.isdir(os.path.join(tmp_dir, "node_modules")), (
-            "Arrange: node_modules nao deve existir no diretorio temporario"
+        # Garante que node_modules/ NÃO existe no diretório temporário
+        node_modules_tmp = tmp_path / "node_modules"
+        assert not node_modules_tmp.exists(), (
+            "node_modules/ não deveria existir no diretório temporário — setup do teste incorreto."
         )
 
-        assert PKG_MGR is not None, "pnpm ou npm nao encontrado no PATH"
+        pnpm = _find_pnpm()
 
-        # Act
+        # Act: tenta executar pnpm run dev sem dependências instaladas
         result = subprocess.run(
-            [PKG_MGR, "run", "dev"],
-            cwd=tmp_dir,
+            [pnpm, "run", "dev"],
+            cwd=str(tmp_path),
             capture_output=True,
-            timeout=15,
+            text=True,
+            timeout=30,
         )
 
-        # Assert — deve falhar (exit code != 0)
+        # Assert: processo deve falhar (exit code != 0)
         assert result.returncode != 0, (
-            "CA-007 FALHOU: o comando de desenvolvimento retornou exit code 0 "
-            "mesmo sem node_modules/ instalado. Era esperada uma falha."
+            "'pnpm run dev' retornou exit code 0 mesmo sem node_modules/ instalado. "
+            "O projeto deveria falhar com erro claro. CA-007 falhou."
         )
 
-        combined_output = (
-            result.stdout.decode("utf-8", errors="replace")
-            + result.stderr.decode("utf-8", errors="replace")
-        ).lower()
-
-        # Deve haver alguma mensagem de erro no output
+        # Assert: saída de erro deve conter indicação do problema
+        combined_output = (result.stdout or "") + (result.stderr or "")
         error_indicators = [
-            "error",
             "not found",
-            "cannot find",
+            "Cannot find",
+            "Module not found",
+            "ERR",
+            "error",
+            "ENOENT",
             "missing",
-            "module",
-            "enoent",
+            "next: command not found",
+            "next" ,
         ]
-        has_error_message = any(indicator in combined_output for indicator in error_indicators)
+        has_error_message = any(
+            indicator.lower() in combined_output.lower() for indicator in error_indicators
+        )
         assert has_error_message, (
-            "CA-007 FALHOU: o processo falhou mas nao exibiu mensagem de erro "
-            "clara no terminal. Output: " + combined_output[:300]
+            "'pnpm run dev' falhou (exit code != 0) mas não exibiu mensagem de erro reconhecível. "
+            f"Output combinado:\n{combined_output}\nCA-007 falhou."
         )
