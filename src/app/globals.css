@@ -1,4 +1,4 @@
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -14,12 +14,14 @@ body {
   align-items: center;
   justify-content: center;
   font-family: system-ui, sans-serif;
-  color: #111;
-  background-color: #fff;
+  background-color: #ffffff;
+  color: #111111;
 }
 
-main {
+.container {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 100vh;
+  width: 100%;
 }

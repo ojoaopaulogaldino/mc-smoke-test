@@ -1,13 +1,15 @@
 # JSAAI — Frontend Bootstrap
 
-Boostrap do projeto React com Next.js 15 + React 19 + TypeScript.
+Projeto React inicializado com Next.js 15 + React 19 + TypeScript.
 
 ## Pré-requisitos
 
-- Node.js 20 LTS (use [nvm](https://github.com/nvm-sh/nvm): `nvm use`)
-- [pnpm](https://pnpm.io/) (`npm install -g pnpm`)
+- **Node.js** 20 LTS (use [nvm](https://github.com/nvm-sh/nvm): `nvm use`)
+- **pnpm** (instale com `npm install -g pnpm`)
 
 ## Instalação
+
+Instale as dependências do projeto:
 
 ```bash
 pnpm install
@@ -15,11 +17,13 @@ pnpm install
 
 ## Desenvolvimento
 
+Inicie o servidor de desenvolvimento local:
+
 ```bash
 pnpm dev
 ```
 
-Acesse [http://localhost:3000](http://localhost:3000) no navegador.
+O servidor ficará disponível em [http://localhost:3000](http://localhost:3000).
 
 Para usar outra porta:
 
@@ -29,13 +33,13 @@ PORT=3001 pnpm dev
 
 ## Build de produção
 
+Gere o bundle de produção:
+
 ```bash
 pnpm build
 ```
 
-Os arquivos gerados ficam em `.next/`.
-
-## Iniciar servidor de produção
+Para iniciar o servidor de produção após o build:
 
 ```bash
 pnpm start
@@ -47,12 +51,20 @@ pnpm start
 .
 ├── src/
 │   └── app/
-│       ├── globals.css   # estilos globais e centralização
-│       ├── layout.tsx    # root layout
-│       └── page.tsx      # página inicial
-├── public/               # assets estáticos
-├── package.json
-├── tsconfig.json
-├── next.config.ts
-└── README.md
+│       ├── page.tsx       # Página inicial — exibe "funcionou"
+│       ├── layout.tsx     # Layout raiz
+│       └── globals.css    # Estilos globais (reset + centralização)
+├── public/                # Arquivos estáticos
+├── package.json           # Dependências e scripts
+├── tsconfig.json          # Configuração TypeScript
+├── next.config.ts         # Configuração Next.js
+├── .nvmrc                 # Versão do Node.js (20 LTS)
+└── README.md              # Este arquivo
 ```
+
+## Tecnologias
+
+- [Next.js 15](https://nextjs.org/) — framework React
+- [React 19](https://react.dev/) — biblioteca de UI
+- [TypeScript](https://www.typescriptlang.org/) — tipagem estática
+- [pnpm](https://pnpm.io/) — gerenciador de pacotes
