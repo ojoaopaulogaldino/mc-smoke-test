@@ -1,20 +1,18 @@
 # JSAAI — Frontend Bootstrap
 
-Projeto React com Next.js 15 exibindo a página inicial com a mensagem "funcionou".
+Página inicial com mensagem "funcionou" centralizada.
 
 ## Pré-requisitos
 
-- Node.js 20 LTS (recomendado: usar [nvm](https://github.com/nvm-sh/nvm))
-- pnpm
+- Node.js 20 LTS (recomendado via [nvm](https://github.com/nvm-sh/nvm))
+- [pnpm](https://pnpm.io/) instalado globalmente
 
 ```bash
-nvm use
+nvm use 20
 npm install -g pnpm
 ```
 
 ## Instalação
-
-Instale as dependências do projeto:
 
 ```bash
 pnpm install
@@ -22,23 +20,21 @@ pnpm install
 
 ## Desenvolvimento
 
-Inicie o servidor de desenvolvimento:
-
 ```bash
 pnpm dev
 ```
 
-Acesse [http://localhost:3000](http://localhost:3000) no navegador.
+Abra [http://localhost:3000](http://localhost:3000) no navegador.
 
 ## Build de produção
-
-Gere o bundle de produção:
 
 ```bash
 pnpm build
 ```
 
-Inicie o servidor de produção:
+Os arquivos de bundle são gerados no diretório `.next/`.
+
+## Iniciar servidor de produção
 
 ```bash
 pnpm start
@@ -47,20 +43,24 @@ pnpm start
 ## Estrutura de pastas
 
 ```
-.
 ├── src/
 │   └── app/
-│       ├── globals.css   # Estilos globais (reset + centralização)
-│       ├── layout.tsx    # Root layout
-│       └── page.tsx      # Página inicial
+│       ├── globals.css   # Reset CSS + centralização flexbox
+│       ├── layout.tsx    # Root layout (pt-BR, metadata mínima)
+│       └── page.tsx      # Página inicial — exibe "funcionou"
 ├── public/               # Assets estáticos
-├── .nvmrc                # Versão do Node (20 LTS)
-├── next.config.ts        # Configuração do Next.js
-├── package.json          # Dependências e scripts
-├── tsconfig.json         # Configuração TypeScript
-└── README.md             # Este arquivo
+├── .gitignore
+├── .nvmrc                # Node 20 LTS
+├── next.config.ts
+├── package.json
+├── README.md
+└── tsconfig.json
 ```
 
-## Observações
+## Nota sobre porta
 
-- Para usar outra porta: `PORT=3001 pnpm dev`
+Caso a porta 3000 esteja ocupada:
+
+```bash
+PORT=3001 pnpm dev
+```

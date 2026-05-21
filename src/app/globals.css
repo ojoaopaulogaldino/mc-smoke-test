@@ -1,24 +1,28 @@
 *, *::before, *::after {
   box-sizing: border-box;
-}
-
-html, body {
   margin: 0;
   padding: 0;
 }
 
+html,
 body {
   min-height: 100vh;
+}
+
+body {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 100vh;
   font-family: system-ui, sans-serif;
-  background-color: #ffffff;
-  color: #000000;
+  background: #ffffff;
+  color: #111111;
 }
 
 main {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 100vh;
+  width: 100%;
 }
