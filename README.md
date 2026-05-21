@@ -1,15 +1,20 @@
-# JSAAI Frontend Bootstrap
+# JSAAI — Frontend Bootstrap
 
-Projeto React com Next.js 15 e React 19.
+Projeto React com Next.js 15 exibindo a página inicial com a mensagem "funcionou".
 
 ## Pré-requisitos
 
-- Node.js 20 LTS (use [nvm](https://github.com/nvm-sh/nvm): `nvm use`)
-- [pnpm](https://pnpm.io/) (`npm install -g pnpm`)
+- Node.js 20 LTS (recomendado: usar [nvm](https://github.com/nvm-sh/nvm))
+- pnpm
+
+```bash
+nvm use
+npm install -g pnpm
+```
 
 ## Instalação
 
-Instale as dependências:
+Instale as dependências do projeto:
 
 ```bash
 pnpm install
@@ -45,22 +50,17 @@ pnpm start
 .
 ├── src/
 │   └── app/
-│       ├── globals.css   # Estilos globais
-│       ├── layout.tsx    # Layout raiz
+│       ├── globals.css   # Estilos globais (reset + centralização)
+│       ├── layout.tsx    # Root layout
 │       └── page.tsx      # Página inicial
-├── public/               # Arquivos estáticos
-├── .gitignore
-├── .nvmrc
-├── next.config.ts
-├── package.json
-├── README.md
-└── tsconfig.json
+├── public/               # Assets estáticos
+├── .nvmrc                # Versão do Node (20 LTS)
+├── next.config.ts        # Configuração do Next.js
+├── package.json          # Dependências e scripts
+├── tsconfig.json         # Configuração TypeScript
+└── README.md             # Este arquivo
 ```
 
-## Troca de porta
+## Observações
 
-Caso a porta 3000 esteja ocupada:
-
-```bash
-PORT=3001 pnpm dev
-```
+- Para usar outra porta: `PORT=3001 pnpm dev`
