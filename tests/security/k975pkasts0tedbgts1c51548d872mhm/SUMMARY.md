@@ -19,22 +19,22 @@
 ### semgrep ✓
 - findings: 0
 - critical: 0 · high: 0 · medium: 0 · low: 0 · info: 0
-- duração: 10524ms
+- duração: 10627ms
 
 ### trivy ✓
 - findings: 0
 - critical: 0 · high: 0 · medium: 0 · low: 0 · info: 0
-- duração: 380ms
+- duração: 515ms
 
 ### gitleaks ✓
 - findings: 0
 - critical: 0 · high: 0 · medium: 0 · low: 0 · info: 0
-- duração: 1030ms
+- duração: 1114ms
 
 ### syft ✓
 - findings: 1
 - critical: 0 · high: 0 · medium: 0 · low: 0 · info: 1
-- duração: 2889ms
+- duração: 2730ms
 
 #### Top findings
 - **[info]** `sbom_components_count` : SBOM gerado: 0 componentes (CycloneDX)
